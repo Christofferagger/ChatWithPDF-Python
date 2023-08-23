@@ -5,7 +5,6 @@ There are many scripts like this out there and I have taken much inspiration fro
 
 Loom demo: 
 
----
 ## Run the script
 1. Run 
 ```
