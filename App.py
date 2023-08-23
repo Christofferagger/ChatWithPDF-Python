@@ -26,13 +26,6 @@ def process_text(text):
 
     db = FAISS.from_texts(chunks, embeddings)
 
-    db1 = FAISS.from_texts(["foo"], embeddings)
-    print(db1.docstore._dict)
-    db2 = FAISS.from_texts(["baa"], embeddings)
-    print(db2.docstore._dict)
-    db1.merge_from(db2)
-    print(db1.docstore._dict)
-
     return db
 
 def main():
@@ -42,40 +35,48 @@ def main():
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
 
-    file = st.file_uploader("Upload your pdf", type="pdf", accept_multiple_files=True)
+    files = st.file_uploader("Upload your pdf", type="pdf", accept_multiple_files=True)
 
-    if file is not None:
-        text = ''
-        pdf_read = PdfReader(file)
-        for page in pdf_read.pages:
-            text += page.extract_text()
+    if files is not None:
+        dbs = []
+        for file in files:
+            text = ''
+            pdf_read = PdfReader(file)
+            for page_num in range(len(pdf_read.pages)):
+                page = pdf_read.pages[page_num]
+                text += page.extract_text()
+            db = process_text(text)
+            dbs.append(db)
         
-        db = process_text(text)
-
-        query = st.text_input("Ask a question?")
-
-        context = "".join([f"{interaction['you']} {interaction['response']}" for interaction in st.session_state.chat_history])
-
-        if query:
-
-            prompt = db.similarity_search(query)
-            llm = OpenAI()
-            chain = load_qa_chain(llm, chain_type='stuff')
-
-            with get_openai_callback() as cost:
-                if st.session_state.chat_history:
-                    question = f"context: {context}\nQuestion: {query}"
-                    response = chain.run(input_documents=prompt, question=question)
-                    print(cost)
-                else:
-                    response = chain.run(input_documents=prompt, question=query)
-                    print(cost)
+        if dbs:
+            combined_db = dbs[0]
+            for db in dbs[1:]:
+                combined_db.merge_from(db)
             
-            st.session_state.chat_history.append({'you': query, 'response': response})
-            st.write(response)
-            for interaction in st.session_state.chat_history:
-                st.write(f"You: {interaction['you']}")
-                st.write(f"Response: {interaction['response']}")
+            query = st.text_input("Ask a question?")
+
+            context = "".join([f"{interaction['you']} {interaction['response']}" for interaction in st.session_state.chat_history])
+
+            if query:
+
+                prompt = combined_db.similarity_search(query)
+                llm = OpenAI()
+                chain = load_qa_chain(llm, chain_type='stuff')
+
+                with get_openai_callback() as cost:
+                    if st.session_state.chat_history:
+                        question = f"context: {context}\nQuestion: {query}"
+                        response = chain.run(input_documents=prompt, question=question)
+                        print(cost)
+                    else:
+                        response = chain.run(input_documents=prompt, question=query)
+                        print(cost)
+                
+                st.session_state.chat_history.append({'you': query, 'response': response})
+                st.write(response)
+                for interaction in st.session_state.chat_history:
+                    st.write(f"You: {interaction['you']}")
+                    st.write(f"Response: {interaction['response']}")
 
 if __name__ == "__main__":
     main()
