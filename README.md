@@ -3,8 +3,6 @@ Using this script you can chat with multiple PDF files and your chat history wil
 
 There are many scripts like this out there and I have taken much inspiration from [here](https://github.com/viniciusarruda/chatpdf)
 
-Loom demo: 
-
 ## Run the script
 1. Run 
 ```
